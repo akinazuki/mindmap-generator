@@ -4,7 +4,7 @@ import OpenAI from "openai";
 import mermaid from "mermaid";
 import { useStorage, watchDebounced } from "@vueuse/core";
 import mindMapGPTContext from "./mindMapGPTContext";
-import "ldrs/ring2";
+import LoadRing from "./LoadRing.vue";
 
 defineProps<{ msg: string }>();
 
@@ -154,22 +154,12 @@ async function generate() {
         :disabled="generating || !localAPIKey" @click="generate"
       >
         Generate Mind Map
-        <l-ring-2
-          v-if="generating" class="ml-2" size="20" stroke="5" stroke-length="0.25" bg-opacity="0.1" speed="0.8"
-          color="white"
-        />
+        <LoadRing v-if="generating" class="ml-2 w-1 h-1" />
       </button>
     </div>
-    <div
-      ref="graphDiv"
-      class="h-[50vh] overflow-scroll border border-gray-300"
-      v-html="mindmapSVG"
-    />
+    <div ref="graphDiv" class="h-[50vh] overflow-scroll border border-gray-300" v-html="mindmapSVG" />
   </div>
 </template>
 
 <style scoped>
-.read-the-docs {
-  color: #888;
-}
 </style>
