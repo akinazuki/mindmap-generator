@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import OpenAI from "openai";
-import mermaid from "mermaid";
 import { useStorage, watchDebounced } from "@vueuse/core";
 import svgPanZoom from "svg-pan-zoom";
 import mindMapGPTContext from "./mindMapGPTContext";
 import LoadRing from "./LoadRing.vue";
-import { waitUntilEstablished } from "./Utils";
+import { isValidMindMapString, waitUntilEstablished } from "./Utils";
+import MermaidGraph from "./MermaidGraph.vue";
 
 defineProps<{ msg: string }>();
 
-// mermaid.initialize({ startOnLoad: false });
-const graphDiv = ref<HTMLDivElement | null>(null);
 const localAPIKey = useStorage("localAPIKey", "");
 const lastGenerateCost = useStorage("lastGenerateCost", {
   total_tokens: 0,
@@ -38,62 +36,20 @@ const defaultFlowChart = `flowchart
     C --> Q[玩家需解决幻想乡的异变]
     Q --> R[崭新的存在价值]`;
 
+const errorMessages = ref<string>("");
 const prompt = useStorage("prompt", defaultPrompt);
 const generating = ref<boolean>(false);
 const mindMapGenerated = useStorage("mindMapGenerated", defaultFlowChart);
 
-function resetSvgWH() {
-  const mermaidDiv = document.getElementById("mermaidDiv");
-  mermaidDiv?.style.setProperty("height", "100%");
-  mermaidDiv?.style.setProperty("max-width", "100%");
-}
-
-let panZoom: any;
 onMounted(async () => {
   if (localAPIKey.value === "")
     localAPIKey.value = (window as any).prompt("Enter your OpenAI API key:");
-
-  await waitUntilEstablished(() => document.getElementById("mermaidDiv") !== null);
-  resetSvgWH();
-  panZoom = svgPanZoom("#mermaidDiv", { controlIconsEnabled: true });
-  window.panZoom = panZoom;
-  console.log(`SVG Pan Zoom instance: ${panZoom}`);
-  panZoom.fit();
-  panZoom.center();
 });
 
 const openai = new OpenAI({
   apiKey: localAPIKey.value,
   dangerouslyAllowBrowser: true,
 });
-const mindmapSVG = ref<string>(``);
-
-async function isValidMindMapString(mindmapStr: string) {
-  try {
-    await mermaid.parse(mindmapStr);
-    return true;
-  }
-  catch (error: any) {
-    return error.message;
-  }
-}
-
-async function renderToSVG(mindmapStr: string) {
-  const isValid = await isValidMindMapString(mindmapStr);
-  if (isValid !== true)
-    throw new Error(`Invalid mind map syntax: ${isValid}`);
-  try {
-    const result = await mermaid.render("mermaidDiv", mindmapStr, graphDiv.value!);
-    return result.svg;
-  }
-  catch (error: any) {
-    throw new Error(`Failed to render mind map: ${error.message}`);
-  }
-  finally {
-    // document.body.removeChild(mermaidDiv);
-    // console.log(`dom removed: ${mermaidDiv}`);
-  }
-}
 
 async function generateMindMap(prompt: string, retries = 3, retryCount = 0) {
   if (retryCount >= retries)
@@ -123,25 +79,6 @@ async function generateMindMap(prompt: string, retries = 3, retryCount = 0) {
   return generateResultMindMap;
 }
 
-watchDebounced(mindMapGenerated, async (newVal) => {
-  if (newVal) {
-    if (newVal === "") { mindmapSVG.value = ""; }
-    else {
-      const svg = await renderToSVG(newVal);
-      // console.log(`Generated mind map SVG: ${svg}`);
-      mindmapSVG.value = svg;
-      nextTick(() => {
-        resetSvgWH();
-        if (panZoom) {
-          panZoom.destroy();
-          panZoom = svgPanZoom("#mermaidDiv", { controlIconsEnabled: true });
-        }
-        panZoom.fit();
-        panZoom.center();
-      });
-    }
-  }
-}, { debounce: 500, immediate: true });
 async function generate() {
   try {
     generating.value = true;
@@ -149,11 +86,18 @@ async function generate() {
     mindMapGenerated.value = mindMap;
   }
   catch (error: any) {
-    mindmapSVG.value = `Error: ${error.message}`;
+    errorMessages.value = error.message;
   }
   finally {
     generating.value = false;
   }
+}
+function processRenderError(error: string) {
+  console.error(`Failed to render mind map: ${error}`);
+  errorMessages.value = error;
+}
+function processRenderSuccess(message: string) {
+  errorMessages.value = "";
 }
 </script>
 
@@ -184,8 +128,10 @@ async function generate() {
         <LoadRing v-if="generating" class="ml-2 w-1 h-1" />
       </button>
     </div>
-
-    <div ref="graphDiv" class="h-[50vh] overflow-scroll border border-gray-300" v-html="mindmapSVG" />
+    <p class="text-red-500">
+      {{ errorMessages }}
+    </p>
+    <MermaidGraph class="h-[50vh] overflow-scroll border border-gray-300" :mindmap-graph="mindMapGenerated" @on-render-success="processRenderSuccess" @on-render-error="processRenderError" />
   </div>
 </template>
 
