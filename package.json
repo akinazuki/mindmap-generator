@@ -16,6 +16,7 @@
     "mermaid": "^10.9.1",
     "openai": "^4.47.1",
     "postcss": "^8.4.38",
+    "svg-pan-zoom": "bumbu/svg-pan-zoom",
     "tailwindcss": "^3.4.3",
     "vue": "^3.4.21"
   },

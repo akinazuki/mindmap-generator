@@ -1,14 +1,17 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from "vue";
+import { nextTick, onMounted, ref, watch } from "vue";
 import OpenAI from "openai";
 import mermaid from "mermaid";
 import { useStorage, watchDebounced } from "@vueuse/core";
+import svgPanZoom from "svg-pan-zoom";
 import mindMapGPTContext from "./mindMapGPTContext";
 import LoadRing from "./LoadRing.vue";
+import { waitUntilEstablished } from "./Utils";
 
 defineProps<{ msg: string }>();
 
 // mermaid.initialize({ startOnLoad: false });
+const graphDiv = ref<HTMLDivElement | null>(null);
 const localAPIKey = useStorage("localAPIKey", "");
 const lastGenerateCost = useStorage("lastGenerateCost", {
   total_tokens: 0,
@@ -39,9 +42,24 @@ const prompt = useStorage("prompt", defaultPrompt);
 const generating = ref<boolean>(false);
 const mindMapGenerated = useStorage("mindMapGenerated", defaultFlowChart);
 
-onMounted(() => {
+function resetSvgWH() {
+  const mermaidDiv = document.getElementById("mermaidDiv");
+  mermaidDiv?.style.setProperty("height", "100%");
+  mermaidDiv?.style.setProperty("max-width", "100%");
+}
+
+let panZoom: any;
+onMounted(async () => {
   if (localAPIKey.value === "")
     localAPIKey.value = (window as any).prompt("Enter your OpenAI API key:");
+
+  await waitUntilEstablished(() => document.getElementById("mermaidDiv") !== null);
+  resetSvgWH();
+  panZoom = svgPanZoom("#mermaidDiv", { controlIconsEnabled: true });
+  window.panZoom = panZoom;
+  console.log(`SVG Pan Zoom instance: ${panZoom}`);
+  panZoom.fit();
+  panZoom.center();
 });
 
 const openai = new OpenAI({
@@ -59,7 +77,7 @@ async function isValidMindMapString(mindmapStr: string) {
     return error.message;
   }
 }
-const graphDiv = ref<HTMLDivElement | null>(null);
+
 async function renderToSVG(mindmapStr: string) {
   const isValid = await isValidMindMapString(mindmapStr);
   if (isValid !== true)
@@ -110,8 +128,17 @@ watchDebounced(mindMapGenerated, async (newVal) => {
     if (newVal === "") { mindmapSVG.value = ""; }
     else {
       const svg = await renderToSVG(newVal);
-      console.log(`Generated mind map SVG: ${svg}`);
+      // console.log(`Generated mind map SVG: ${svg}`);
       mindmapSVG.value = svg;
+      nextTick(() => {
+        resetSvgWH();
+        if (panZoom) {
+          panZoom.destroy();
+          panZoom = svgPanZoom("#mermaidDiv", { controlIconsEnabled: true });
+        }
+        panZoom.fit();
+        panZoom.center();
+      });
     }
   }
 }, { debounce: 500, immediate: true });
@@ -157,6 +184,7 @@ async function generate() {
         <LoadRing v-if="generating" class="ml-2 w-1 h-1" />
       </button>
     </div>
+
     <div ref="graphDiv" class="h-[50vh] overflow-scroll border border-gray-300" v-html="mindmapSVG" />
   </div>
 </template>
