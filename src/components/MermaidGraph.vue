@@ -50,17 +50,17 @@ async function renderToSVG(mindmapStr: string) {
   }
 }
 
-onMounted(async () => {
-  try {
-    const generated = await renderToSVG(props.mindmapGraph);
-    mindmapSVG.value = generated;
-    resetSvgWH();
-    initPanZoom();
-  }
-  catch (error: any) {
-    console.error(`Failed to render mind map: ${error.message}`);
-  }
-});
+// onMounted(async () => {
+//   try {
+//     const generated = await renderToSVG(props.mindmapGraph);
+//     mindmapSVG.value = generated;
+//     resetSvgWH();
+//     initPanZoom();
+//   }
+//   catch (error: any) {
+//     console.error(`Failed to render mind map: ${error.message}`);
+//   }
+// });
 const mindMapGenerated = computed(() => props.mindmapGraph);
 
 watchDebounced(mindMapGenerated, async (newVal) => {

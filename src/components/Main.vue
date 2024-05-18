@@ -51,7 +51,11 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
-async function generateMindMap(prompt: string, retries = 3, retryCount = 0) {
+async function generateMindMap(prompt: string, retries = 3, retryCount = 0, tokensUsed = {
+  total_tokens: 0,
+  prompt_tokens: 0,
+  completion_tokens: 0,
+}) {
   if (retryCount >= retries)
     throw new Error(`Failed to generate mind map after ${retries} retries`);
   const chatCompletion = await openai.chat.completions.create({
@@ -66,7 +70,14 @@ async function generateMindMap(prompt: string, retries = 3, retryCount = 0) {
   });
   const mindMapOrig = chatCompletion.choices[0].message.content;
   const currentLoopTokensUsed = chatCompletion.usage;
-  lastGenerateCost.value = currentLoopTokensUsed;
+
+  if (!currentLoopTokensUsed)
+    throw new Error("Failed to get tokens used");
+
+  tokensUsed.total_tokens += currentLoopTokensUsed.total_tokens;
+  tokensUsed.prompt_tokens += currentLoopTokensUsed.prompt_tokens;
+  tokensUsed.completion_tokens += currentLoopTokensUsed?.completion_tokens;
+
   if (!mindMapOrig)
     throw new Error("Failed to generate mind map");
   // eslint-disable-next-line regexp/no-super-linear-backtracking
@@ -74,8 +85,9 @@ async function generateMindMap(prompt: string, retries = 3, retryCount = 0) {
   const isValid = await isValidMindMapString(generateResultMindMap!);
   if (isValid !== true) {
     console.log(`Invalid mind map syntax ${isValid}, retrying[${retryCount}]...`);
-    return await generateMindMap(prompt, retries, retryCount + 1);
+    return await generateMindMap(prompt, retries, retryCount + 1, tokensUsed);
   }
+  lastGenerateCost.value = tokensUsed;
   return generateResultMindMap;
 }
 
