@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from "vue";
 import OpenAI from "openai";
-import { useStorage, watchDebounced } from "@vueuse/core";
-import svgPanZoom from "svg-pan-zoom";
+import { useStorage } from "@vueuse/core";
 import mindMapGPTContext from "./mindMapGPTContext";
 import LoadRing from "./LoadRing.vue";
-import { isValidMindMapString, waitUntilEstablished } from "./Utils";
+import { isValidMindMapString } from "./Utils";
 import MermaidGraph from "./MermaidGraph.vue";
 
 defineProps<{ msg: string }>();

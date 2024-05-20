@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import mermaid from "mermaid";
 import svgPanZoom from "svg-pan-zoom";
-import { computed, nextTick, onMounted, ref } from "vue";
+import { computed, nextTick, ref } from "vue";
 import { watchDebounced } from "@vueuse/core";
 import { isValidMindMapString } from "./Utils";
 
 const props = defineProps<{ mindmapGraph: string }>();
+
 const emit = defineEmits(["onRenderError", "onRenderSuccess"]);
 const graphDiv = ref<HTMLDivElement | null>(null);
 const mindmapSVG = ref<string>(``);
-
+const divId = `mermaidDiv_${Math.random().toString(36).substring(7)}`;
 function resetSvgWH() {
-  const mermaidDiv = document.getElementById("mermaidDiv");
+  const mermaidDiv = document.getElementById(divId);
   mermaidDiv?.style.setProperty("height", "100%");
   mermaidDiv?.style.setProperty("max-width", "100%");
 }
@@ -21,7 +22,7 @@ function initPanZoom() {
   if (panZoom)
     panZoom.destroy();
   try {
-    panZoom = svgPanZoom("#mermaidDiv", { controlIconsEnabled: true });
+    panZoom = svgPanZoom(`#${divId}`, { controlIconsEnabled: true });
     window.panZoom = panZoom;
     panZoom.fit();
     panZoom.center();
@@ -36,7 +37,7 @@ async function renderToSVG(mindmapStr: string) {
   if (isValid !== true)
     throw new Error(`Invalid mind map syntax: ${isValid}`);
   try {
-    const result = await mermaid.render("mermaidDiv", mindmapStr, graphDiv.value!);
+    const result = await mermaid.render(divId, mindmapStr, graphDiv.value!);
     emit("onRenderSuccess", "Mind map rendered successfully");
     return result.svg;
   }
